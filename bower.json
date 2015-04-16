@@ -1,0 +1,27 @@
+{
+  "name": "angular-moment-timepicker",
+  "version": "0.0.1",
+  "authors": [
+    "Hadrien Kohl <hadrien.kohl@teletopia.com>"
+  ],
+  "description": "A flexible date and time picker directive for angularjs",
+  "moduleType": [
+    "globals"
+  ],
+  "main": [
+    "./dist/angular-moment-timepicker.js",
+    "./dist/datetimepicker.css"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "momentjs": "~2.10.2",
+    "angularjs": "~1.3.15"
+  }
+}
