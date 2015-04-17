@@ -73,25 +73,17 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
   scope: {
     minDate: '=?'     # minimum selectionable date.
     maxDate: '=?'     # maximum selectionable date.
-    currentView: '=?' #
-    mdFormat: '&'     # moment format string use to format the current date.
-    commitView: '&'   #
-    afterSelect: '&'
+    view: '=?'
     tokens: '&'
     position: '=?'    # Default to ng-model.
     selected: '=?'    # Hold the selection until commit.
+    hovered: '=?'
     activeBefore: '=?'
     activeAfter: '=?'
   }
-  require: 'ngModel'
   replace: true
-  link: (scope, elm, attr, ngModel)->
-    scope.currentView = 'year' if not scope.currentView?
-
-    # TODO: It might be possible to dynamicaly link pos and model using a watch on pos only if undefined.
-    # TODO: Maybe a better aproach is to have a setting attribute like "follow".
-    # TODO: Same thing with the commit thing.
-    followDate = false
+  link: (scope, elm, attr)->
+    scope.view = 'year' if not scope.view?
 
     #
     # Used to calculate the next values
@@ -112,42 +104,28 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
     # required to move with the keyboard.
     #
     goLeft = ->
-      -steps[scope.currentView].step
+      -steps[scope.view].step
     goRight = ->
-      steps[scope.currentView].step
+      steps[scope.view].step
     goDown = ->
-      steps[scope.currentView].line
+      steps[scope.view].line
     goUp = ->
-      -steps[scope.currentView].line
+      -steps[scope.view].line
 
     scope.keyPress = ($event) ->
+
+      selected = moment(scope.selected)
+
       switch $event.keyCode
-        when 39 then scope.selectDate(scope.date.add(goRight()), $event)
-        when 40 then scope.selectDate(scope.date.add(goDown()), $event)
-        when 37 then scope.selectDate(scope.date.add(goLeft()), $event)
-        when 38 then scope.selectDate(scope.date.add(goUp()), $event)
+        when 39 then scope.select(selected.add(goRight()), $event)
+        when 40 then scope.select(selected.add(goDown()), $event)
+        when 37 then scope.select(selected.add(goLeft()), $event)
+        when 38 then scope.select(selected.add(goUp()), $event)
         when 13 then scope.nextView($event) # enter
         when 8 then scope.previousView($event) # backspace
         when 9 then angular.noop #tab
         when 27 then angular.noop # esc
 
-    #ngModel.$setViewValue(newValue);
-    ngModel.$render = ->
-      scope.date = moment(ngModel.$modelValue)
-
-    afterSelect = angular.noop
-
-    onSelectDisabled = (step, $event) ->
-      console.log "Clicked on a disabled date."
-
-    onSelectFuture = (step, $event) ->
-      console.log "Clicked on a future date."
-
-    onSelectPast = (step, $event) ->
-      console.log "Clicked on a past date."
-
-    onSelectUnselectable = (step, $event) ->
-      console.log "Clicked on a date outside the range"
 
     # Should observe on
     # date value.
@@ -164,40 +142,49 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
 
     scope.dow = moment.weekdaysShort()
 
-    scope.selectDate = (date, event) ->
+    scope.hover = (date, event) ->
       if event?
         event.stopPropagation()
         event.preventDefault()
 
+      scope.hovered = if date.value? then moment(date.value).toDate() else moment(date).toDate()
 
-      date = if date.value? then moment(date.value) else moment(date)
-      #ngModel.$setViewValue(date.toDate());
-      scope.date = date
+    #
+    # Set selected to the value of the date argument.
+    #
+    scope.select = (date, event) ->
+      if event?
+        event.stopPropagation()
+        event.preventDefault()
 
-      afterSelect(scope) if event?
+      scope.selected = if date.value? then moment(date.value).toDate() else moment(date).toDate()
 
-    scope.setDate = (date) ->
-      scope.date = date
 
+    #
+    # Change to the next position
+    #
     scope.next = (event) ->
       if event?
         event.stopPropagation()
         event.preventDefault()
 
-      date = moment(scope.date)
-      offset = steps[scope.currentView].next
+      date = moment(scope.selected)
+      offset = steps[scope.view].next
       date.add(offset)
-      scope.setDate(date)
+      scope.position = date.toDate()
 
+    #
+    # Change to the previous position
+    #
     scope.previous = (event) ->
       if event?
         event.stopPropagation()
         event.preventDefault()
 
-      date = moment(scope.date)
-      offset = steps[scope.currentView].previous
+      date = moment(scope.selected)
+      offset = steps[scope.view].previous
       date.add(offset)
-      scope.setDate(date)
+      scope.position = date.toDate()
 
 
     ###
@@ -214,12 +201,7 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
         stepsByWeek[stepsByWeek.length - 1].push step
       return stepsByWeek
 
-    scope.$watch('date', ->
-      scope.position = scope.date if followDate
-      console.log "new date!"  if followDate
-    )
-
-    scope.$watch('activeBefore + activeAfter + currentView + position', ->
+    scope.$watch('activeBefore + activeAfter + view + position', ->
       # need to update the steps.
       return if not scope.steps? or not (scope.activeBefore? or scope.activeAfter?)
 
@@ -230,22 +212,23 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
         step.active = isBefore and isAfter
     )
 
-    scope.$watch('currentView + position + minDate + maxDate', ->
+    scope.$watch('view + position + minDate + maxDate + selected', ->
       # Get the starting date.
-      step = steps[scope.currentView]
-      stepDate = step.first(moment(scope.date))
+      step = steps[scope.view]
+      stepDate = step.first(moment(scope.position))
       period = step.step
       amount = step.amount
 
-      lowerDate = moment(scope.date).startOf(scope.currentView)
-      upperDate = moment(scope.date).add(1, scope.currentView)
+      lowerDate = moment(scope.position).startOf(scope.view)
+      upperDate = moment(scope.position).add(1, scope.view)
+      currentDate = moment(scope.selected)
 
       scope.steps = for i in [1..amount]
 
         # TODO: Use the step to make the comparison!
-        before = if scope.minDate? then stepDate.isBefore(scope.minDate, scope.currentView) else true
-        after = if scope.maxDate? then stepDate.isAfter(scope.maxDate, scope.currentView) else true
-        same = stepDate.isSame(scope.date, scope.currentView)
+        before = if scope.minDate? then stepDate.isBefore(scope.minDate, scope.view) else true
+        after = if scope.maxDate? then stepDate.isAfter(scope.maxDate, scope.view) else true
+        same = stepDate.isSame(currentDate, scope.view)
         newDate = {
           selectable: not (before and after)
           active: same #
@@ -275,7 +258,7 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
       if not scope.maxDate?
         return true
       else
-        return moment(scope.date).add(steps[scope.currentView].next).isBefore(scope.maxDate)
+        return moment(scope.selected).add(steps[scope.view].next).isBefore(scope.maxDate)
 
     #
     # Compute a boolean value that indicate if
@@ -288,7 +271,7 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
       if not scope.minDate?
         return true
       else
-        return moment(scope.date).add(steps[scope.currentView].previous).isAfter(scope.minDate)
+        return moment(scope.selected).add(steps[scope.view].previous).isAfter(scope.minDate)
 
     #
     # Return the next view value.
@@ -310,7 +293,7 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
 
       scope.switchView(
         nextViewValue(
-          scope.currentView
+          scope.view
         )
       )
 
@@ -335,7 +318,7 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
 
       scope.switchView(
         previousViewValue(
-          scope.currentView
+          scope.view
         )
       )
 
@@ -344,39 +327,41 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
         event.stopPropagation()
         event.preventDefault()
 
-      scope.currentView = view
+      scope.view = view
 
   restrict: 'E'
   template: """
 <div tabindex="0" ng-keydown="keyPress($event)" class="datetimepicker table-responsive">
-<table  class="table table-striped  {{ currentView }}-view">
+<table  class="table table-striped  {{ view }}-view">
    <thead>
        <tr>
            <th class="left" data-ng-click="previous($event)" data-ng-show="$canPrevious"><i class="glyphicon glyphicon-arrow-left"/></th>
            <th class="switch" colspan="5" data-ng-click="previousView($event)">
-               <span ng-repeat="token in tokens" class="{{ token.view }} {{ token.view === currentView && 'current' || '' }} " >
-                 <a ng-if="token.view" ng-click="switchView(token.view, $event)">{{ date.toDate() | date:token.format }}</a>
+               <span ng-repeat="token in tokens" class="{{ token.view }} {{ token.view === view && 'current' || '' }} " >
+                 <a ng-if="token.view" ng-click="switchView(token.view, $event)">{{ position | date:token.format }}</a>
                  <span ng-if="!token.view">{{ token.value }}</span>
                </span>
            </th>
            <th class="right" data-ng-click="next($event)" data-ng-show="$canNext"><i class="glyphicon glyphicon-arrow-right"/></th>
        </tr>
-       <tr data-ng-show="currentView === 'day'">
+       <tr data-ng-show="view === 'day'">
            <th class="dow" data-ng-repeat="day in dow" >{{ day }}</th>
        </tr>
    </thead>
    <tbody>
-       <tr data-ng-if="currentView !== 'day'" >
+       <tr data-ng-if="view !== 'day'" >
            <td colspan="7" >
-              <span    class="{{ currentView }}"
+              <span    class="{{ view }}"
                        data-ng-repeat="step in steps"
                        data-ng-class="{active: step.active, past: step.past, future: step.future, disabled: !step.selectable}"
-                       data-ng-click="selectDate(step,$event)">{{ step.formatted }}</span>
+                       data-ng-click="select(step,$event)"
+                       data-ng-mouseover="hover(step,$event)">{{ step.formatted }}</span>
            </td>
        </tr>
-       <tr data-ng-if="currentView === 'day'" data-ng-repeat="week in stepsByWeek">
+       <tr data-ng-if="view === 'day'" data-ng-repeat="week in stepsByWeek">
            <td data-ng-repeat="step in week"
-               data-ng-click="selectDate(step,$event)"
+               data-ng-click="select(step,$event)"
+               data-ng-mouseover="hover(step,$event)"
                class="day"
              data-ng-class="{active: step.active, past: step.past, future: step.future, disabled: !step.selectable}">{{ step.formatted }}</td>
        </tr>
