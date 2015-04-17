@@ -113,7 +113,6 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
       -steps[scope.view].line
 
     scope.keyPress = ($event) ->
-
       selected = moment(scope.selected)
 
       switch $event.keyCode
@@ -187,66 +186,6 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
       scope.position = date.toDate()
 
 
-    ###
-      Helper method that split the steps by week
-    ###
-    splitByWeeks = (steps = []) ->
-      lastWeek = null
-      stepsByWeek = []
-      for step in steps
-        week = moment(step.value).week()
-        if lastWeek != week
-          stepsByWeek.push []
-          lastWeek = week
-        stepsByWeek[stepsByWeek.length - 1].push step
-      return stepsByWeek
-
-    scope.$watch('activeBefore + activeAfter + view + position', ->
-      # need to update the steps.
-      return if not scope.steps? or not (scope.activeBefore? or scope.activeAfter?)
-
-      for step in scope.steps
-        date = moment(step.value)
-        isBefore = if scope.activeBefore? then date.isBefore(scope.activeBefore) else true
-        isAfter = if scope.activeAfter? then date.isAfter(scope.activeAfter) else true
-        step.active = isBefore and isAfter
-    )
-
-    scope.$watch('view + position + minDate + maxDate + selected', ->
-      # Get the starting date.
-      step = steps[scope.view]
-      stepDate = step.first(moment(scope.position))
-      period = step.step
-      amount = step.amount
-
-      lowerDate = moment(scope.position).startOf(scope.view)
-      upperDate = moment(scope.position).add(1, scope.view)
-      currentDate = moment(scope.selected)
-
-      scope.steps = for i in [1..amount]
-
-        # TODO: Use the step to make the comparison!
-        before = if scope.minDate? then stepDate.isBefore(scope.minDate, scope.view) else true
-        after = if scope.maxDate? then stepDate.isAfter(scope.maxDate, scope.view) else true
-        same = stepDate.isSame(currentDate, scope.view)
-        newDate = {
-          selectable: not (before and after)
-          active: same #
-          past: stepDate.isBefore(lowerDate)
-          future: stepDate.isBefore(upperDate)
-
-          formatted: stepDate.format(step.format)
-          value: stepDate.toDate()
-        }
-        stepDate = moment(stepDate).add(period)
-        newDate # Important!
-
-      scope.stepsByWeek = splitByWeeks(scope.steps)
-
-      scope.$canNext = canNextView()
-      scope.$canPrevious = canPreviousView()
-    )
-
     #
     # Compute a boolean value that indicate if
     # switching to the next view would put the
@@ -272,6 +211,79 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
         return true
       else
         return moment(scope.selected).add(steps[scope.view].previous).isAfter(scope.minDate)
+
+    #
+    #  Helper method that split the steps by week
+    #
+    splitByWeeks = (steps = []) ->
+      return if not scope.steps?
+
+      lastWeek = null
+      stepsByWeek = []
+      for step in steps
+        week = moment(step.value).week()
+        if lastWeek != week
+          stepsByWeek.push []
+          lastWeek = week
+        stepsByWeek[stepsByWeek.length - 1].push step
+
+      return stepsByWeek
+
+    scope.$watch('minDate + maxDate + steps.length', ->
+      return if not scope.steps?
+      for step in scope.steps
+        stepDate = moment(step.value)
+        afterMinimum = if scope.minDate? then stepDate.isAfter(scope.minDate, scope.view) else true
+        beforeMaximum = if scope.maxDate? then stepDate.isBefore(scope.maxDate, scope.view) else true
+        step.selectable = afterMinimum and beforeMaximum
+    )
+
+    scope.$watch('activeBefore + activeAfter + steps.length', ->
+      return if not scope.steps?
+      for step in scope.steps
+        stepDate = moment(step.value)
+        if not scope.activeBefore? and not scope.activeAfter?
+          step.active = false
+        else
+          isBefore = if scope.activeBefore? then stepDate.isBefore(scope.activeBefore, scope.view) or stepDate.isSame(scope.activeBefore, scope.view) else true
+          isAfter = if scope.activeAfter? then stepDate.isAfter(scope.activeAfter, scope.view) or stepDate.isSame(scope.activeAfter, scope.view) else true
+          step.active = isBefore and isAfter
+    )
+
+    scope.$watch('selected + steps.length', ->
+      return if not scope.steps?
+
+      for step in scope.steps
+        step.selected = moment(step.value).isSame(scope.selected, scope.view)
+
+      scope.$canNext = canNextView()
+      scope.$canPrevious = canPreviousView()
+    )
+
+    scope.$watch('position + view', ->
+      # Position only.
+      step = steps[scope.view]
+      stepDate = step.first(moment(scope.position))
+      period = step.step
+      amount = step.amount
+
+      # TODO: Fix this!
+      lowerDate = moment(scope.position).startOf(scope.view)
+      upperDate = moment(scope.position).add(1, scope.view)
+      console.log "#{ lowerDate.format() } -> #{ lowerDate.format() } (#{  scope.view })"
+
+      scope.steps = for i in [0..amount] by 1
+        stepDate.add(period)
+        {
+        past: moment(stepDate).isBefore(lowerDate)
+        future: moment(stepDate).isAfter(upperDate)
+        formatted: moment(stepDate).format(step.format)
+        value: moment(stepDate).toDate()
+        }
+      scope.byWeeks = splitByWeeks(scope.steps) if scope.view == 'day'
+      return
+    )
+
 
     #
     # Return the next view value.
@@ -355,13 +367,13 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
                        data-ng-repeat="step in steps"
                        data-ng-class="{active: step.active, past: step.past, future: step.future, disabled: !step.selectable}"
                        data-ng-click="select(step,$event)"
-                       data-ng-mouseover="hover(step,$event)">{{ step.formatted }}</span>
+                       data-ng-mouseenter="hover(step,$event)">{{ step.formatted }}</span>
            </td>
        </tr>
-       <tr data-ng-if="view === 'day'" data-ng-repeat="week in stepsByWeek">
-           <td data-ng-repeat="step in week"
+       <tr data-ng-if="view === 'day'" data-ng-repeat="weeks in byWeeks">
+           <td data-ng-repeat="step in weeks"
                data-ng-click="select(step,$event)"
-               data-ng-mouseover="hover(step,$event)"
+               data-ng-mouseenter="hover(step,$event)"
                class="day"
              data-ng-class="{active: step.active, past: step.past, future: step.future, disabled: !step.selectable}">{{ step.formatted }}</td>
        </tr>
