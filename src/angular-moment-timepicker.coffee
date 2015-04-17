@@ -4,11 +4,10 @@
     A highly extensible date time picker directive.
 ###
 module = angular.module 'ui.bootstrap.moment.datetimepicker', []
-
 #
 # Contain default parameters for the directive
 #
-module.constant('dateTimePickerConfig', {
+module.constant 'dateTimePickerConfig', {
   year:
     format: 'YYYY'
     first: (date) ->
@@ -64,27 +63,49 @@ module.constant('dateTimePickerConfig', {
     step: moment.duration(5, 'second')
     previous: moment.duration(-1, 'hour')
     next: moment.duration(1, 'hour')
-})
+}
 
 #
 # moment datetimepicker directive.
 #
-module.directive 'momentDatetimepicker', ->
+module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig)->
   return {
   scope: {
-    mdFormat: '&'     # moment format string use to format the current date.
     minDate: '=?'     # minimum selectionable date.
     maxDate: '=?'     # maximum selectionable date.
     currentView: '=?' #
+    mdFormat: '&'     # moment format string use to format the current date.
     commitView: '&'   #
     afterSelect: '&'
+    tokens: '&'
+    position: '=?'    # Default to ng-model.
+    selected: '=?'    # Hold the selection until commit.
+    activeBefore: '=?'
+    activeAfter: '=?'
   }
   require: 'ngModel'
   replace: true
   link: (scope, elm, attr, ngModel)->
-    scope.currentView = if scope.currentView? then 'year'
-    console.log scope
+    scope.currentView = 'year' if not scope.currentView?
 
+    # TODO: It might be possible to dynamicaly link pos and model using a watch on pos only if undefined.
+    # TODO: Maybe a better aproach is to have a setting attribute like "follow".
+    # TODO: Same thing with the commit thing.
+    followDate = false
+
+    #
+    # Used to calculate the next values
+    #
+    steps = defaultConfig
+
+    # This should be calculated D. M YYYY
+    scope.tokens = if not scope.tokens()? then [
+      {format: 'd', view: 'day'}
+      {format: '. '}
+      {format: 'MMMM', view: 'month'}
+      {format: ' '}
+      {format: 'yyyy', view: 'year'}
+    ] else scope.tokens()
 
     #
     # Helper functions returning the durations
@@ -112,12 +133,7 @@ module.directive 'momentDatetimepicker', ->
 
     #ngModel.$setViewValue(newValue);
     ngModel.$render = ->
-      scope.date = moment(ngModel.$modelValue) || moment()
-
-    views = [
-      'year', 'month', 'day'
-      'hour', 'minute', 'second'
-    ]
+      scope.date = moment(ngModel.$modelValue)
 
     afterSelect = angular.noop
 
@@ -146,12 +162,7 @@ module.directive 'momentDatetimepicker', ->
       'hour', 'minute', 'second'
     ]
 
-    #
-    # Used to calculate the next values
-    #
-    steps =
-
-      scope.dow = moment.weekdaysShort()
+    scope.dow = moment.weekdaysShort()
 
     scope.selectDate = (date, event) ->
       if event?
@@ -188,16 +199,6 @@ module.directive 'momentDatetimepicker', ->
       date.add(offset)
       scope.setDate(date)
 
-    scope.currentView = 'month'
-
-    # This should be calculated D. M YYYY
-    scope.tokens = [
-      {format: 'd', view: 'day'}
-      {format: '. '}
-      {format: 'MMMM', view: 'month'}
-      {format: ' '}
-      {format: 'yyyy', view: 'year'}
-    ]
 
     ###
       Helper method that split the steps by week
@@ -213,7 +214,23 @@ module.directive 'momentDatetimepicker', ->
         stepsByWeek[stepsByWeek.length - 1].push step
       return stepsByWeek
 
-    scope.$watch('currentView + date + minDate + maxDate + currentView', ->
+    scope.$watch('date', ->
+      scope.position = scope.date if followDate
+      console.log "new date!"  if followDate
+    )
+
+    scope.$watch('activeBefore + activeAfter + currentView + position', ->
+      # need to update the steps.
+      return if not scope.steps? or not (scope.activeBefore? or scope.activeAfter?)
+
+      for step in scope.steps
+        date = moment(step.value)
+        isBefore = if scope.activeBefore? then date.isBefore(scope.activeBefore) else true
+        isAfter = if scope.activeAfter? then date.isAfter(scope.activeAfter) else true
+        step.active = isBefore and isAfter
+    )
+
+    scope.$watch('currentView + position + minDate + maxDate', ->
       # Get the starting date.
       step = steps[scope.currentView]
       stepDate = step.first(moment(scope.date))
@@ -225,6 +242,7 @@ module.directive 'momentDatetimepicker', ->
 
       scope.steps = for i in [1..amount]
 
+        # TODO: Use the step to make the comparison!
         before = if scope.minDate? then stepDate.isBefore(scope.minDate, scope.currentView) else true
         after = if scope.maxDate? then stepDate.isAfter(scope.maxDate, scope.currentView) else true
         same = stepDate.isSame(scope.date, scope.currentView)
@@ -238,7 +256,7 @@ module.directive 'momentDatetimepicker', ->
           value: stepDate.toDate()
         }
         stepDate = moment(stepDate).add(period)
-        newDate
+        newDate # Important!
 
       scope.stepsByWeek = splitByWeeks(scope.steps)
 
@@ -336,14 +354,14 @@ module.directive 'momentDatetimepicker', ->
        <tr>
            <th class="left" data-ng-click="previous($event)" data-ng-show="$canPrevious"><i class="glyphicon glyphicon-arrow-left"/></th>
            <th class="switch" colspan="5" data-ng-click="previousView($event)">
-               <span ng-repeat="token in tokens" class="{{ token.view }} {{ token.view === currentView && \'current\' || \'\' }} " >
+               <span ng-repeat="token in tokens" class="{{ token.view }} {{ token.view === currentView && 'current' || '' }} " >
                  <a ng-if="token.view" ng-click="switchView(token.view, $event)">{{ date.toDate() | date:token.format }}</a>
                  <span ng-if="!token.view">{{ token.value }}</span>
                </span>
            </th>
            <th class="right" data-ng-click="next($event)" data-ng-show="$canNext"><i class="glyphicon glyphicon-arrow-right"/></th>
        </tr>
-       <tr data-ng-show="currentView === 'day">
+       <tr data-ng-show="currentView === 'day'">
            <th class="dow" data-ng-repeat="day in dow" >{{ day }}</th>
        </tr>
    </thead>
@@ -369,4 +387,4 @@ module.directive 'momentDatetimepicker', ->
 
 
   }
-
+]
