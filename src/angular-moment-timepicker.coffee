@@ -453,10 +453,16 @@ module.directive 'periodDatetimePicker', ['dateTimePickerConfig', (defaultConfig
       step: moment.duration(4, 'month')
 
     scope.$watch('position + view', ->
-      scope.leftPos = moment(moment(position) - (2 * viewsSteps[scope.view].step)).toDate()
-      scope.middlePos = moment(moment(position) - (1 * viewsSteps[scope.view].step)).toDate()
-      scope.rightPos = moment(moment(position) - (0 * viewsSteps[scope.view].step)).toDate()
+      scope.leftPos = moment(moment(scope.position) - (2 * viewsSteps[scope.view].step)).toDate()
+      scope.middlePos = moment(moment(scope.position) - (1 * viewsSteps[scope.view].step)).toDate()
+      scope.rightPos = moment(moment(scope.position) - (0 * viewsSteps[scope.view].step)).toDate()
     )
+
+    scope.$next = ->
+      scope.position = moment(moment(scope.position) + (3 * viewsSteps[scope.view].step)).toDate()
+
+    scope.$previous = ->
+      scope.position = moment(moment(scope.position) + (3 * viewsSteps[scope.view].step)).toDate()
 
     selecting = null
     changeRange = (newDate) ->
@@ -478,7 +484,8 @@ module.directive 'periodDatetimePicker', ['dateTimePickerConfig', (defaultConfig
   restrict: 'E'
   template: """
 <div class='period-picker'>
-  <div class="previous-btn">
+  <div class="previous-btn" ng-click="$previous()">
+    <a>previous</a>
   </div>
   <div class="pickers">
     <div class='left'>
@@ -508,7 +515,8 @@ module.directive 'periodDatetimePicker', ['dateTimePickerConfig', (defaultConfig
       </moment-datetimepicker>
     </div>
   </div>
-  <div class="next-btn">
+  <div class="next-btn" ng-click="$next()">
+    <a>next</a>
   </div>
 </div>
 """
