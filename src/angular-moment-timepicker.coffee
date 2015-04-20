@@ -32,7 +32,7 @@ module.constant 'dateTimePickerConfig', {
       date.date(1)
       date.subtract(Math.abs(date.weekday()), 'days')
     compare: (a, b) ->
-      (moment(a).month()+1) - (moment(b).month() + 1)
+      (moment(a).month() + 1) - (moment(b).month() + 1)
     amount: 42
     line: moment.duration(7, 'day')
     step: moment.duration(1, 'day')
@@ -247,8 +247,16 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
         if not scope.activeBefore? and not scope.activeAfter?
           step.active = false
         else
-          isBefore = if scope.activeBefore? then stepDate.isBefore(scope.activeBefore, scope.view) or stepDate.isSame(scope.activeBefore, scope.view) else true
-          isAfter = if scope.activeAfter? then stepDate.isAfter(scope.activeAfter, scope.view) or stepDate.isSame(scope.activeAfter, scope.view) else true
+          if scope.activeBefore?
+            isBefore = stepDate.isBefore(scope.activeBefore, scope.view) or stepDate.isSame(scope.activeBefore,
+                scope.view)
+          else
+            isBefore = true
+          if scope.activeAfter?
+            isAfter = stepDate.isAfter(scope.activeAfter, scope.view) or stepDate.isSame(scope.activeAfter, scope.view)
+          else
+            isAfter = true
+
           step.active = isBefore and isAfter
     )
 
@@ -271,10 +279,10 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
 
       scope.steps = for i in [0..amount] by 1
         currentStep = {
-        past: step.compare(stepDate,scope.position) < 0
-        future: step.compare(stepDate,scope.position) > 0
-        formatted: moment(stepDate).format(step.format)
-        value: moment(stepDate).toDate()
+          past: step.compare(stepDate, scope.position) < 0
+          future: step.compare(stepDate, scope.position) > 0
+          formatted: moment(stepDate).format(step.format)
+          value: moment(stepDate).toDate()
         }
         stepDate.add(period)
         currentStep
@@ -342,7 +350,7 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
 
   restrict: 'E'
   template: """
-<div tabindex="0" ng-keydown="keyPress($event)" class="datetimepicker table-responsive">
+<div ng-keydown="keyPress($event)" class="datetimepicker table-responsive">
 <table  class="table table-striped  {{ view }}-view">
    <thead>
        <tr>
@@ -382,5 +390,127 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
 """
 
 
+  }
+]
+
+
+###
+    A directive that allow the selection of two datetime values.
+###
+module.directive 'periodDatetimePicker', ['dateTimePickerConfig', (defaultConfig)->
+  return {
+  scope:{
+    minDate: '=?'     # minimum selectionnable date.
+    maxDate: '=?'     # maximum selectionnable date.
+    view: '=?'
+    tokens: '&'
+    position: '=?'    # Default to ng-model.
+    from: "="
+    to: "="
+  }
+  replace:true
+  link:(scope, elm, attr)->
+
+    # The selected dates in the three datetimepicker.
+    scope.left = scope.middle = scope.right = null
+    scope.leftPos = scope.middlePos = scope.leftPos = moment().toDate() if not scope.position?
+    scope.hovered = null
+    scope.view = 'day'
+    scope.laa = scope.lab = scope.maa = scope.mab = scope.raa = scope.rab = null
+
+    scope.$watch('from + to + position', ->
+      return unless scope.from? and scope.to?
+
+      from = moment(scope.from)
+      to = moment(scope.to)
+
+      # Make sure we always start with the largest.
+      [from, to] = [to, from] if to < from
+
+      scope.rab = scope.mab = scope.lab = to.toDate()
+      scope.raa = scope.maa = scope.laa = from.toDate()
+    )
+
+    # Steps between the three directives, starting from the right.
+    viewsSteps =
+    minute:
+      duration: moment.duration(12, 'hour')
+      step: moment.duration(4, 'hour')
+    hour:
+      duration: moment.duration(24, 'hour')
+      step: moment.duration(8, 'hour')
+     #week:
+     #  duration:moment.duration(3, 'week')
+     #  step: moment.duration(7, 'day')
+    day:
+      duration: moment.duration(3, 'month')
+      step: moment.duration(1, 'month')
+    month:
+      duration: moment.duration(12, 'month')
+      step: moment.duration(4, 'month')
+    year:
+      duration: moment.duration(100, 'year')
+      step: moment.duration(4, 'month')
+
+    scope.$watch('position + view', ->
+      scope.leftPos = moment(moment(position) - (2 * viewsSteps[scope.view].step)).toDate()
+      scope.middlePos = moment(moment(position) - (1 * viewsSteps[scope.view].step)).toDate()
+      scope.rightPos = moment(moment(position) - (0 * viewsSteps[scope.view].step)).toDate()
+    )
+
+    selecting = null
+    changeRange = (newDate) ->
+      if not selecting?
+        scope.from = newDate
+        scope.to = null
+        selecting = scope.$watch('hover', (newDate) ->
+          scope.to = moment(newDate).toDate()
+        )
+      else
+        selecting()
+        selecting = null
+
+    scope.$watch('left', changeRange)
+    scope.$watch('middle', changeRange)
+    scope.$watch('right', changeRange)
+
+
+  restrict: 'E'
+  template: """
+<div class='period-picker'>
+  <div class="previous-btn">
+  </div>
+  <div class="pickers">
+    <div class='left'>
+      <moment-datetimepicker selected="left"
+                             position="leftPos"
+                             view="view"
+                             active-before="lab"
+                             active-after="laa"
+                             hovered="hover">
+      </moment-datetimepicker>
+    </div>
+    <div class='middle'>
+      <moment-datetimepicker selected="right"
+                             position="middlePos"
+                             view="view"
+                             active-before="rab"
+                             active-after="raa"
+                             hovered="hover">
+    </div>
+    <div class='right'>
+      <moment-datetimepicker selected="middle"
+                             position="rightPos"
+                             view="view"
+                             active-before="mab"
+                             active-after="maa"
+                             hovered="hover">
+      </moment-datetimepicker>
+    </div>
+  </div>
+  <div class="next-btn">
+  </div>
+</div>
+"""
   }
 ]
