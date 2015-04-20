@@ -31,6 +31,8 @@ module.constant 'dateTimePickerConfig', {
     first: (date) ->
       date.date(1)
       date.subtract(Math.abs(date.weekday()), 'days')
+    compare: (a, b) ->
+      (moment(a).month()+1) - (moment(b).month() + 1)
     amount: 42
     line: moment.duration(7, 'day')
     step: moment.duration(1, 'day')
@@ -267,19 +269,16 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
       period = step.step
       amount = step.amount
 
-      # TODO: Fix this!
-      lowerDate = moment(scope.position).startOf(scope.view)
-      upperDate = moment(scope.position).add(1, scope.view)
-      console.log "#{ lowerDate.format() } -> #{ lowerDate.format() } (#{  scope.view })"
-
       scope.steps = for i in [0..amount] by 1
-        stepDate.add(period)
-        {
-        past: moment(stepDate).isBefore(lowerDate)
-        future: moment(stepDate).isAfter(upperDate)
+        currentStep = {
+        past: step.compare(stepDate,scope.position) < 0
+        future: step.compare(stepDate,scope.position) > 0
         formatted: moment(stepDate).format(step.format)
         value: moment(stepDate).toDate()
         }
+        stepDate.add(period)
+        currentStep
+
       scope.byWeeks = splitByWeeks(scope.steps) if scope.view == 'day'
       return
     )
