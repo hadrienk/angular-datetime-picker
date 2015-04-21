@@ -231,7 +231,7 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
 
       return stepsByWeek
 
-    scope.$watch('minDate + maxDate + steps.length', ->
+    scope.$watchGroup(['minDate', 'maxDate', 'steps'], ->
       return if not scope.steps?
       for step in scope.steps
         stepDate = moment(step.value)
@@ -277,7 +277,7 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
       period = step.step
       amount = step.amount
 
-      scope.steps = for i in [0..amount] by 1
+      scope.steps = for i in [0..amount - 1] by 1
         currentStep = {
           past: step.compare(stepDate, scope.position) < 0
           future: step.compare(stepDate, scope.position) > 0
@@ -459,10 +459,10 @@ module.directive 'periodDatetimePicker', ['dateTimePickerConfig', (defaultConfig
     )
 
     scope.$next = ->
-      scope.position = moment(moment(scope.position) + (3 * viewsSteps[scope.view].step)).toDate()
+      scope.position = moment(moment(scope.position) + viewsSteps[scope.view].step).toDate()
 
     scope.$previous = ->
-      scope.position = moment(moment(scope.position) + (3 * viewsSteps[scope.view].step)).toDate()
+      scope.position = moment(moment(scope.position) - viewsSteps[scope.view].step).toDate()
 
     selecting = null
     changeRange = (newDate) ->
@@ -494,7 +494,9 @@ module.directive 'periodDatetimePicker', ['dateTimePickerConfig', (defaultConfig
                              view="view"
                              active-before="lab"
                              active-after="laa"
-                             hovered="hover">
+                             hovered="hover"
+                             min-date="min"
+                             max-date="max">
       </moment-datetimepicker>
     </div>
     <div class='middle'>
@@ -503,7 +505,9 @@ module.directive 'periodDatetimePicker', ['dateTimePickerConfig', (defaultConfig
                              view="view"
                              active-before="rab"
                              active-after="raa"
-                             hovered="hover">
+                             hovered="hover"
+                             min-date="min"
+                             max-date="max">
     </div>
     <div class='right'>
       <moment-datetimepicker selected="middle"
@@ -511,7 +515,9 @@ module.directive 'periodDatetimePicker', ['dateTimePickerConfig', (defaultConfig
                              view="view"
                              active-before="mab"
                              active-after="maa"
-                             hovered="hover">
+                             hovered="hover"
+                             min-date="min"
+                             max-date="max">
       </moment-datetimepicker>
     </div>
   </div>
