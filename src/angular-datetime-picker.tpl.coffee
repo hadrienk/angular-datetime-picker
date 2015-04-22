@@ -1,4 +1,5 @@
-"use strict";
+"use strict"
+
 angular.module('datetime.picker').run(['$templateCache', (cache)->
   cache.put('datetime/picker.tpl.html', """
 <div ng-keydown="keyPress($event)" class="datetimepicker table-responsive">
@@ -38,7 +39,7 @@ angular.module('datetime.picker').run(['$templateCache', (cache)->
    </tbody>
 </table>
 </div>
-"""
+""")
   cache.put('datetime/period-picker.tpl.html', """
 <div class='period-picker'>
   <div class="previous-btn" ng-click="$previous()">
@@ -83,5 +84,4 @@ angular.module('datetime.picker').run(['$templateCache', (cache)->
   </div>
 </div>
 """)
-  )
 ])
