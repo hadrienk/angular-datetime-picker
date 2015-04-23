@@ -231,7 +231,7 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
 
       return stepsByWeek
 
-    scope.$watchGroup(['minDate', 'maxDate', 'steps'], ->
+    scope.$watch('minDate + maxDate + steps[0].value', ->
       return if not scope.steps?
       for step in scope.steps
         stepDate = moment(step.value)
@@ -349,7 +349,7 @@ module.directive 'momentDatetimepicker', ['dateTimePickerConfig', (defaultConfig
       scope.view = view
 
   restrict: 'E'
-  template: 'datetime/picker.tpl.html'
+  templateUrl: 'datetime/picker.tpl.html'
   }
 ]
 
@@ -447,9 +447,7 @@ module.directive 'periodDatetimePicker', ['dateTimePickerConfig', (defaultConfig
     scope.$watch('left', changeRange)
     scope.$watch('middle', changeRange)
     scope.$watch('right', changeRange)
-
-
   restrict: 'E'
-  template: 'datetime/period-picker.tpl.html'
+  templateUrl: 'datetime/period-picker.tpl.html'
   }
 ]
