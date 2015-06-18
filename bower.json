@@ -10,7 +10,7 @@
   ],
   "main": [
     "dist/angular-moment-timepicker.js",
-    "dist/angular-datetime-picker.tpl.js",
+    "dist/angular-datetime-picker.tpl.js"
   ],
   "license": "MIT",
   "ignore": [
