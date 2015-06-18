@@ -4,6 +4,43 @@
  * License: MIT
  */
 
+.period-picker:before .pickers:before {
+  display: table;
+  content: " ";
+}
+
+.period-picker .pickers:after {
+  clear: both;
+}
+
+.period-picker .pickers > div.picker  {
+  width: 33.3333333%;
+  float: left;
+}
+
+.period-picker .middle, .period-picker .left, .period-picker .right {
+  margin-right: 0;
+  padding-right: 0;
+}
+
+.period-picker th.left, .period-picker th.right {
+  visibility: hidden;
+}
+
+.period-picker .left {
+  float: left;
+}
+
+.period-picker .datetimepicker {
+  padding: 4px;
+  margin-top: 1px;
+  -webkit-border-radius: 4px;
+  -moz-border-radius: 4px;
+  border-radius: 4px;
+  direction: ltr;
+  width: auto;
+}
+
 .datetimepicker {
     padding: 4px;
     margin-top: 1px;
@@ -11,7 +48,6 @@
     -moz-border-radius: 4px;
     border-radius: 4px;
     direction: ltr;
-    width: 320px;
 }
 
 .datetimepicker.datetimepicker-rtl {
@@ -173,6 +209,7 @@
     background: none;
     color: #999999;
     cursor: default;
+    text-decoration: line-through;
 }
 
 .datetimepicker table tr td.today,
