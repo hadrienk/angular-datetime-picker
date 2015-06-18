@@ -9,9 +9,8 @@
     "globals"
   ],
   "main": [
-    "dist/angular-datetime-picker.tpl.js",
     "dist/angular-moment-timepicker.js",
-    "dist/period-picker.js"
+    "dist/angular-datetime-picker.tpl.js",
   ],
   "license": "MIT",
   "ignore": [
