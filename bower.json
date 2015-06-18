@@ -1,6 +1,6 @@
 {
   "name": "angular-moment-timepicker",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "authors": [
     "Hadrien Kohl <hadrien.kohl@teletopia.com>"
   ],
@@ -10,7 +10,7 @@
   ],
   "main": [
     "dist/angular-moment-timepicker.js",
-    "dist/angular-datetime-picker.tpl.js",
+    "dist/angular-datetime-picker.tpl.js"
   ],
   "license": "MIT",
   "ignore": [
